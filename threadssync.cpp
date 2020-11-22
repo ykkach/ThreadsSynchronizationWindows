@@ -65,11 +65,10 @@ void ThreadsSync::on_create_clicked()
     SECURITY_ATTRIBUTES sa = {sizeof(SECURITY_ATTRIBUTES), 0, FALSE};
     if(ui->syncType->currentIndex() == 1)
         InitializeCriticalSection(CS);
-    if(ui->syncType->currentIndex() == 3)
-        hSemaphore = CreateSemaphore(nullptr, 0, 15, nullptr);
     if(ui->syncType->currentIndex() == 2)
         hMutex = CreateMutex(nullptr, FALSE, nullptr);
-
+    if(ui->syncType->currentIndex() == 3)
+        hSemaphore = CreateSemaphore(nullptr, 1, 16, nullptr);
 
     for(int i = 0; i < numOfThreads; ++i){
         unsigned ThreadID;
@@ -211,6 +210,34 @@ unsigned int _stdcall SemaphoretThread(LPVOID arg){
     return 0;
 }
 
+void ThreadsSync::on_runwithouttime_clicked()
+{
+    for(int i = 0; i < numOfThreads; ++i){
+        ui->availableThreads->item(i, 2)->setText("Running");
+        ResumeThread(hThreads[i]);
+    }
+}
+
+void ThreadsSync::on_runall_clicked()
+{
+    QElapsedTimer timer;
+    timer.start();
+
+    for(int i = 0; i < numOfThreads; ++i){
+        ui->availableThreads->item(i, 2)->setText("Running");
+        ResumeThread(hThreads[i]);
+    }
+    for(int i = 0; i < numOfThreads; i++)
+        WaitForSingleObject(hThreads[i], INFINITE);
+
+    timer.nsecsElapsed();
+    ui->time->setText(QString::number(timer.nsecsElapsed()/1000000.0) + " ms");
+
+    for(int i = 0; i < numOfThreads; ++i){
+         ui->availableThreads->item(i, 2)->setText("Finished");
+    }
+}
+
 QString ThreadsSync::priority(int code){
     switch (code)
     {
@@ -223,42 +250,6 @@ QString ThreadsSync::priority(int code){
     }
 }
 
-void ThreadsSync::on_runwithouttime_clicked()
-{
-    for(int i = 0; i < numOfThreads; ++i){
-        ui->availableThreads->item(i, 2)->setText("Running");
-        ResumeThread(hThreads[i]);
-    }
-}
-
-/*
-
-void UiControl::on_runall_clicked()
-{
-    QElapsedTimer timer;
-    timer.start();
-
-    for(int i = 0; i < numOfThreads; ++i){
-        ui->availableThreads->item(i, 2)->setText("Running");
-        ResumeThread(hThreads[i]);
-        WaitForSingleObject(hThreads[i], INFINITE);
-    }
-    timer.nsecsElapsed();
-    ui->time->setText(QString::number(timer.nsecsElapsed()/1000000.0) + " ms");
-
-    for(int i = 0; i < numOfThreads; ++i){
-         ui->availableThreads->item(i, 2)->setText("Finished");
-    }
-}
-void UiControl::on_runwithouttime_clicked()
-{
-    for(int i = 0; i < numOfThreads; ++i){
-        ui->availableThreads->item(i, 2)->setText("Running");
-        ResumeThread(hThreads[i]);
-    }
-}
-
-}*/
 
 void ThreadsSync::on_priority_currentIndexChanged(int index)
 {
@@ -310,24 +301,4 @@ void ThreadsSync::on_killThread_clicked()
 {
     TerminateThread(hThreads[ui->availableThreads->currentIndex().row()],0);
     ui->availableThreads->item(ui->availableThreads->currentIndex().row(), 2)->setText("Terminated");
-}
-
-void ThreadsSync::on_runall_clicked()
-{
-    QElapsedTimer timer;
-    timer.start();
-
-    for(int i = 0; i < numOfThreads; ++i){
-        ui->availableThreads->item(i, 2)->setText("Running");
-        ResumeThread(hThreads[i]);
-    }
-    for(int i = 0; i < numOfThreads; i++)
-        WaitForSingleObject(hThreads[i], INFINITE);
-
-    timer.nsecsElapsed();
-    ui->time->setText(QString::number(timer.nsecsElapsed()/1000000.0) + " ms");
-
-    for(int i = 0; i < numOfThreads; ++i){
-         ui->availableThreads->item(i, 2)->setText("Finished");
-    }
 }
