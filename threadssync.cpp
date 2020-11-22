@@ -1,22 +1,17 @@
 #include "threadssync.h"
 #include "ui_threadssync.h"
-//#include <string>
 #include <iostream>
 #include <fstream>
-//#include <QApplication>
 #include <QElapsedTimer>
-//#include <QMessageBox>
-//#include <sstream>
 #include <windows.h>
 #include <cmath>
-//#include <QDebug>
 
 std::string SSTUDENTDATA = "Yaroslav Kachmar 12700969";
 std::string PATH = "C:\\Users\\Yaroslav\\Documents\\build-ThreadsSynchronisationInWindows-Desktop_Qt_5_14_1_MinGW_32_bit-Debug\\";
 
 HANDLE hMutex, hSemaphore;
 volatile unsigned RESOURSEINUSEFLAG = FALSE;
-LPCRITICAL_SECTION CS;
+CRITICAL_SECTION CS;
 
 ThreadsSync::ThreadsSync(QWidget *parent)
     : QMainWindow(parent)
@@ -33,7 +28,7 @@ ThreadsSync::~ThreadsSync()
     delete[] hThreads;
     CloseHandle(hMutex);
     if(ui->syncType->currentIndex() == 1)
-        DeleteCriticalSection(CS);
+        DeleteCriticalSection(&CS);
     delete ui;
 }
 
@@ -68,23 +63,11 @@ void ThreadsSync::on_create_clicked()
     int startingPoint = 0, endpoint = numOfIterations;
         int *array = new int[ui->steps->toPlainText().toInt()];
     for(int i = 0 ; i < numOfIterations*numOfThreads; i++)
-               array[i] = rand() % 1000;
+        array[i] = rand() % 1000;
 
-    std::fstream fRes;
-    std::string filePath = PATH + "minElementSearch.txt";
-    fRes.open(filePath, std::ios::out| std::ios::app);
-    if(fRes.is_open())
-    {
-        for(int i = 0; i < ui->steps->toPlainText().toInt(); ++i)
-            fRes << array[i] << std::endl;
-        fRes << "/n /n /n";
-        fRes.close();
-    }else{
-        std::cerr << "Error: file could not be opened" << std::endl;
-    }
     SECURITY_ATTRIBUTES sa = {sizeof(SECURITY_ATTRIBUTES), 0, FALSE};
     if(ui->syncType->currentIndex() == 1)
-        InitializeCriticalSection(CS);
+        InitializeCriticalSection(&CS);
     if(ui->syncType->currentIndex() == 2)
         hMutex = CreateMutex(nullptr, FALSE, nullptr);
     if(ui->syncType->currentIndex() == 3)
@@ -166,12 +149,12 @@ unsigned int _stdcall CSdThread(LPVOID arg)
 {
     SDTSA* DTSA = (SDTSA*)arg;
     for(int i = 0;i < (DTSA->numberOfIterations); ++i){
-        TryEnterCriticalSection(CS);
+        EnterCriticalSection(&CS);
         for (unsigned j = 0; j < SSTUDENTDATA.length();++j) {
             std::cout.put(SSTUDENTDATA[j]);
         }
         std::cout << ' ' << GetCurrentThreadId() << std::endl;
-        LeaveCriticalSection(CS);
+        LeaveCriticalSection(&CS);
     }
     return 0;
 }
@@ -279,10 +262,9 @@ QString ThreadsSync::priority(int code){
         case 0: return "Normal";
         case -15: return "Idle";
         case 2: return "High";
-    default: return "";
+    default: return "0";
     }
 }
-
 
 void ThreadsSync::on_priority_currentIndexChanged(int index)
 {
