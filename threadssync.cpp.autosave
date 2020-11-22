@@ -68,20 +68,8 @@ void ThreadsSync::on_create_clicked()
     int startingPoint = 0, endpoint = numOfIterations;
         int *array = new int[ui->steps->toPlainText().toInt()];
     for(int i = 0 ; i < numOfIterations*numOfThreads; i++)
-               array[i] = rand() % 1000;
+        array[i] = rand() % 1000;
 
-    std::fstream fRes;
-    std::string filePath = PATH + "minElementSearch.txt";
-    fRes.open(filePath, std::ios::out| std::ios::app);
-    if(fRes.is_open())
-    {
-        for(int i = 0; i < ui->steps->toPlainText().toInt(); ++i)
-            fRes << array[i] << std::endl;
-        fRes << "/n /n /n";
-        fRes.close();
-    }else{
-        std::cerr << "Error: file could not be opened" << std::endl;
-    }
     SECURITY_ATTRIBUTES sa = {sizeof(SECURITY_ATTRIBUTES), 0, FALSE};
     if(ui->syncType->currentIndex() == 1)
         InitializeCriticalSection(CS);
