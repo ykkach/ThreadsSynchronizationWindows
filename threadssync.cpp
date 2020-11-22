@@ -45,6 +45,9 @@ struct SDefaultThreadStartArguments
 struct SSortingThreadStartArguments
 {
     int numberOfIterations;
+    int *array;
+    int startingPoint;
+    int endPoint;
 };
 
 using SDTSA = SDefaultThreadStartArguments;
@@ -61,6 +64,11 @@ void ThreadsSync::on_create_clicked()
     ui->availableThreads->setHorizontalHeaderItem(2, new QTableWidgetItem("State"));
 
     int numOfIterations = ui->steps->toPlainText().toInt()/numOfThreads;
+
+    int startingPoint = 0, endpoint = numOfIterations;
+        int *array = new int[ui->steps->toPlainText().toInt()];
+    for(int i = 0 ; i < numOfIterations*numOfThreads; i++)
+               array[i] = rand() % 1000;
 
     SECURITY_ATTRIBUTES sa = {sizeof(SECURITY_ATTRIBUTES), 0, FALSE};
     if(ui->syncType->currentIndex() == 1)
@@ -94,7 +102,10 @@ void ThreadsSync::on_create_clicked()
         }
         case 1:{
             SSTSA* STSA = new SSTSA();
+            STSA->array = array;
             STSA->numberOfIterations = numOfIterations;
+            STSA->startingPoint = startingPoint;
+            STSA->endPoint = endpoint;
             switch(ui->syncType->currentIndex())
             {
             case 2:
@@ -108,6 +119,8 @@ void ThreadsSync::on_create_clicked()
                 break;
             }
             }
+            endpoint += numOfIterations;
+            startingPoint += numOfIterations;
             break;
         }
         default:;
@@ -151,91 +164,97 @@ unsigned int _stdcall CSdThread(LPVOID arg)
     return 0;
 }
 
-void swap(int *xp, int *yp)
-{
-    int temp = *xp;
-    *xp = *yp;
-    *yp = temp;
-}
 
 unsigned int _stdcall MutextThread(LPVOID arg){
-    SSTSA* STSA = (SSTSA*)arg;
-    int *array = new int[STSA->numberOfIterations];
 
-    for(int i = 0 ; i < STSA->numberOfIterations; i++)
-       array[i] = rand() % 1000;
-    for(int i = 0; i < STSA->numberOfIterations; ++i)
-        {
-            bool flag = false;
-            for(int j = 0; j < STSA->numberOfIterations-i-1; ++j)
-            {
-                if(array[j+1] > array[j])
-                {
-                    flag = true;
-                    swap(&array[j],&array[j+1]);
-                }
-            }
-            if(!flag) break;
-        }
-    WaitForSingleObject(hMutex, INFINITE);
-    for(int i = 0; i < STSA->numberOfIterations; ++i)
-        std::cout << array[i] << std::endl;
-    ReleaseMutex(hMutex);
-    return 0;
+    SSTSA* STSA = (SSTSA*)arg;
+    int minElem = STSA->array[0];
+    for(int i = 1; i < STSA->numberOfIterations; ++i)
+    {
+        if(minElem > STSA->array[i])
+            minElem = STSA->array[i];
+    }
+
+    std::fstream fRes;
+    std::string filePath = PATH + "minElementSearch.txt";
+    fRes.open(filePath, std::ios::out| std::ios::app);
+    if(fRes.is_open())
+    {
+        WaitForSingleObject(hMutex, INFINITE);
+        for(int i = 0; i < STSA->numberOfIterations; ++i)
+            fRes << STSA->array[i] << std::endl;
+        ReleaseMutex(hMutex);
+    }else{
+        std::cerr << "Error: file could not be opened" << std::endl;
+        return 1;
+    }
+    _endthreadex(minElem);
+        return 0;
 }
 
 unsigned int _stdcall SemaphoretThread(LPVOID arg){
     SSTSA* STSA = (SSTSA*)arg;
-    int *array = new int[STSA->numberOfIterations];
-
-    for(int i = 0 ; i < STSA->numberOfIterations; i++)
-       array[i] = rand() % 1000;
-    for(int i = 0; i < STSA->numberOfIterations; ++i)
-        {
-            bool flag = false;
-            for(int j = 0; j < STSA->numberOfIterations-i-1; ++j)
-            {
-                if(array[j+1] > array[j])
-                {
-                    flag = true;
-                    swap(&array[j],&array[j+1]);
-                }
-            }
-            if(!flag) break;
-        }
-    WaitForSingleObject(hSemaphore, INFINITE);
-    for(int i = 0; i < STSA->numberOfIterations; ++i)
-        std::cout << array[i] << std::endl;
-    ReleaseSemaphore(hSemaphore, 1, nullptr);
-    return 0;
-}
-
-void ThreadsSync::on_runwithouttime_clicked()
-{
-    for(int i = 0; i < numOfThreads; ++i){
-        ui->availableThreads->item(i, 2)->setText("Running");
-        ResumeThread(hThreads[i]);
+    int minElem = STSA->array[0];
+    for(int i = 1; i < STSA->numberOfIterations; ++i)
+    {
+        if(minElem > STSA->array[i])
+            minElem = STSA->array[i];
     }
+
+    std::fstream fRes;
+    std::string filePath = PATH + "minElementSearch.txt";
+    fRes.open(filePath, std::ios::out| std::ios::app);
+    if(fRes.is_open())
+    {
+        WaitForSingleObject(hSemaphore, INFINITE);
+        for(int i = 0; i < STSA->numberOfIterations; ++i)
+            fRes << STSA->array[i] << std::endl;
+        ReleaseSemaphore(hSemaphore, 1, nullptr);
+    }else{
+        std::cerr << "Error: file could not be opened" << std::endl;
+        return 1;
+    }
+    _endthreadex(minElem);
+    return 0;
 }
 
 void ThreadsSync::on_runall_clicked()
 {
     QElapsedTimer timer;
     timer.start();
+    int* minElements = new int[numOfThreads];
 
     for(int i = 0; i < numOfThreads; ++i){
         ui->availableThreads->item(i, 2)->setText("Running");
         ResumeThread(hThreads[i]);
     }
-    for(int i = 0; i < numOfThreads; i++)
-        WaitForSingleObject(hThreads[i], INFINITE);
+    WaitForMultipleObjects(numOfThreads, hThreads, TRUE, INFINITE);
 
     timer.nsecsElapsed();
     ui->time->setText(QString::number(timer.nsecsElapsed()/1000000.0) + " ms");
 
+    for(int i = 0; i < numOfThreads; i++){
+        if(ui->chosenTask->currentIndex() == 1){
+            DWORD exitCode;
+            GetExitCodeThread(hThreads[i], &exitCode);
+            minElements[i] = exitCode;
+        }
+    }
+
     for(int i = 0; i < numOfThreads; ++i){
          ui->availableThreads->item(i, 2)->setText("Finished");
     }
+    int minimalElement = minElements[0];
+
+    for(int i = 1 ; i < numOfThreads; ++i)
+        if(minElements[i] < minimalElement)
+                minimalElement = minElements[i];
+    std::fstream fRes;
+    std::string filePath = PATH + "minElementSearch.txt";
+    fRes.open(filePath, std::ios::out| std::ios::app);
+    fRes << "Minimal element: " << minimalElement << std::endl;
+    fRes.close();
+
 }
 
 QString ThreadsSync::priority(int code){

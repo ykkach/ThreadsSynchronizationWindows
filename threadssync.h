@@ -18,7 +18,6 @@ public:
     ~ThreadsSync();
 
 private slots:
-    void on_runwithouttime_clicked();
 
     void on_create_clicked();
 
